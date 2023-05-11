@@ -610,6 +610,36 @@ impl<H: Digest<OutputSize = U32> + Clone, NG> MuSig<H, NG> {
         g!((c * a) * X_i + R1 + b * R2 - s_i * G).is_zero()
     }
 
+    /// Verifies a proof of a partial signature (or partial encrypted signature depending on `T`).
+    /// The proof of a partial signature `s` (which is a scalar) is `proof_psig = s * G` (point
+    /// on the curve).
+    ///
+    /// You must provide the `index` of the party (the index of the key in `agg_key`).
+    ///
+    /// # Panics
+    ///
+    /// Panics when `index` is equal to or greater than the number of keys in the agg_key.
+    pub fn verify_partial_signature_proof<T>(
+        &self,
+        agg_key: &AggKey<EvenY>,
+        session: &SignSession<T>,
+        index: usize,
+        partial_sig_proof: Point,
+    ) -> bool {
+        let c = session.c;
+        let b = session.b;
+        let a = agg_key.coefs[index];
+
+        let X_i = agg_key
+            .keys()
+            .nth(index)
+            .unwrap()
+            .conditional_negate(agg_key.needs_negation);
+
+        let [R1, R2] = &session.public_nonces[index].0;
+        g!((c * a) * X_i + R1 + b * R2 - partial_sig_proof).is_zero()
+    }
+
     /// Combines all the partial signatures into a single `Signature`.
     ///
     /// Note this does not check the validity of any of the partial signatures. You should either check
